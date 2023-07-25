@@ -26,10 +26,10 @@ pub struct SquaredFilter {
 impl SquaredFilter {
     pub fn new(a: Coordinate, b: Coordinate) -> SquaredFilter {
         SquaredFilter {
-            top_left: a,
-            top_right: Coordinate::new(b.longitude, a.latitude),
-            bottom_right: b,
-            bottom_left: Coordinate::new(a.longitude, b.latitude),
+            top_left: Coordinate::new(a.longitude, b.latitude),
+            top_right: b,
+            bottom_right: Coordinate::new(b.longitude, a.latitude),
+            bottom_left: a,
         }
     }
 }
@@ -59,9 +59,9 @@ mod tests {
 
         let area = SquaredFilter::new(coordinate_a, coordinate_b);
 
-        assert_eq!(area.top_left, coordinate_a);
-        assert_eq!(area.bottom_right, coordinate_b);
-        assert_eq!(area.top_right, Coordinate::new(longitude_b, latitude_a));
-        assert_eq!(area.bottom_left, Coordinate::new(longitude_a, latitude_b));
+        assert_eq!(area.top_left, Coordinate::new(longitude_a, latitude_b));
+        assert_eq!(area.bottom_right, Coordinate::new(longitude_b, latitude_a));
+        assert_eq!(area.top_right, coordinate_b);
+        assert_eq!(area.bottom_left, coordinate_a);
     }
 }

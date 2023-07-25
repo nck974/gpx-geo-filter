@@ -22,6 +22,14 @@ pub fn is_point_more_than_x_distance_from_filter(
     }
 }
 
+/// Check if the provided point is within the boundaries of the area
+pub fn is_point_in_area(area: &SquaredFilter, point: &Coordinate) -> bool {
+    point.longitude >= area.top_left.longitude
+        && point.longitude < area.top_right.longitude
+        && point.latitude < area.top_left.latitude
+        && point.latitude >= area.bottom_left.latitude
+}
+
 /// Constants are extracted from:
 /// https://stackoverflow.com/questions/1253499/simple-calculations-for-working-with-lat-lon-and-km-distance
 fn calculate_distance_between_two_coordinates_in_km(a: &Coordinate, b: &Coordinate) -> f32 {
@@ -96,6 +104,26 @@ mod tests {
         assert_eq!(
             true,
             is_point_more_than_x_distance_from_filter(&area, &point, 1105.0)
+        );
+    }    
+    #[test]
+    fn point_is_in_area() {
+        let point = Coordinate::new(45.0, 45.0);
+        let area = SquaredFilter::new(Coordinate::new(40.0, 40.0), Coordinate::new(80.0, 80.0));
+
+        assert_eq!(
+            true,
+            is_point_in_area(&area, &point)
+        );
+    }    
+    #[test]
+    fn point_is_not_in_area() {
+        let point = Coordinate::new(91.0, 91.0);
+        let area = SquaredFilter::new(Coordinate::new(40.0, 40.0), Coordinate::new(80.0, 80.0));
+
+        assert_eq!(
+            false,
+            is_point_in_area(&area, &point)
         );
     }
 }
