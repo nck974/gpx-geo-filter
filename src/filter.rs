@@ -3,8 +3,10 @@ use std::{
     io::{BufRead, BufReader},
     path::PathBuf,
     sync::{Arc, Mutex},
-    thread,
 };
+
+use rayon::prelude::*;
+use rayon::ThreadPoolBuilder;
 
 use crate::{
     model::SquaredFilter, parser::extract_first_coordinate_from_text,
@@ -12,30 +14,27 @@ use crate::{
 };
 
 pub fn prefilter_files(paths: Vec<PathBuf>, area: &SquaredFilter, distance: f32) -> Vec<PathBuf> {
+    let thread_pool = ThreadPoolBuilder::new().num_threads(64).build().unwrap();
+
     let filtered_paths = Arc::new(Mutex::new(Vec::new()));
-    let threads: Vec<_> = paths
-        .into_iter()
-        .map(|path| {
+
+    thread_pool.install(|| {
+        paths.into_par_iter().for_each(|path| {
             let filtered_paths_clone = Arc::clone(&filtered_paths);
             let area_clone = area.clone();
-            thread::spawn(move || {
-                if !is_file_far_away_from_area(&path, &area_clone, distance) {
-                    let mut filtered_paths = filtered_paths_clone.lock().unwrap();
-                    filtered_paths.push(path);
-                }
-            })
-        })
-        .collect();
 
-    for thread in threads {
-        thread.join().unwrap();
-    }
+            if !is_file_far_away_from_area(&path, &area_clone, distance) {
+                let mut filtered_paths = filtered_paths_clone.lock().unwrap();
+                filtered_paths.push(path);
+            }
+        });
+    });
+
     Arc::try_unwrap(filtered_paths)
         .unwrap()
         .into_inner()
         .unwrap()
 }
-
 
 pub fn prefilter_files_single_thread(
     paths: Vec<PathBuf>,
