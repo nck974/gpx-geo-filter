@@ -12,7 +12,7 @@ use regex::Regex;
 
 use crate::{
     io::read_xml_file,
-    model::SquaredFilter,
+    model::{Coordinate, SquaredFilter},
     parser::{compile_coordinate_regex, extract_first_coordinate_from_text},
     utils::{is_point_in_area, is_point_more_than_x_distance_from_filter},
 };
@@ -42,12 +42,24 @@ pub fn prefilter_files(
     thread_pool.install(|| {
         paths.into_par_iter().for_each(|path| {
             let filtered_paths_clone = Arc::clone(&filtered_paths);
-            let area_clone = area.clone();
             let re_clone = re.clone();
 
-            if !is_file_far_away_from_area(&path, re_clone, &area_clone, distance) {
-                let mut filtered_paths = filtered_paths_clone.lock().unwrap();
-                filtered_paths.push(path);
+            let coordinate = extract_first_coordinate_from_file(&path, re_clone);
+            match coordinate {
+                Some(coordinate) => {
+                    if is_point_in_area(area, &coordinate) {
+                        let mut filtered_paths = filtered_paths_clone.lock().unwrap();
+                        filtered_paths.push(path);
+                    } else if !is_point_more_than_x_distance_from_filter(
+                        area,
+                        &coordinate,
+                        distance,
+                    ) {
+                        let mut filtered_paths = filtered_paths_clone.lock().unwrap();
+                        filtered_paths.push(path);
+                    }
+                }
+                _ => (),
             }
         });
     });
@@ -100,32 +112,18 @@ pub fn filter_tracks_outside_area(
         .unwrap()
 }
 
-/// Check the files that are further away the given distance from the target area
-fn is_file_far_away_from_area(
-    path: &PathBuf,
-    re: Regex,
-    area: &SquaredFilter,
-    distance: f32,
-) -> bool {
+fn extract_first_coordinate_from_file(path: &PathBuf, re: Regex) -> Option<Coordinate> {
     let file = File::open(path).unwrap();
     let reader = BufReader::new(file);
 
     for line in reader.lines() {
         let coordinate = extract_first_coordinate_from_text(re.clone(), line.unwrap().as_str());
         match coordinate {
-            Some(coordinate) => {
-                if is_point_in_area(&area, &coordinate) {
-                    return false;
-                }
-                if is_point_more_than_x_distance_from_filter(area, &coordinate, distance) {
-                    return true;
-                }
-                return false;
-            }
+            Some(coordinate) => return Some(coordinate),
             None => continue,
         }
     }
-    true
+    None
 }
 
 /// Check the files that are further away the given distance from the target area
