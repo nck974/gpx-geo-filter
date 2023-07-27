@@ -41,7 +41,6 @@ fn calculate_distance_between_two_coordinates_in_km(a: &Coordinate, b: &Coordina
         (a.longitude - b.longitude) * LON_TO_KM * a.latitude.to_radians().cos();
 
     let distance_km = (delta_latitude_km.powi(2) + delta_longitude_km.powi(2)).sqrt();
-    // println!("Distance is {}", distance_km);
     distance_km
 }
 
@@ -51,8 +50,8 @@ mod tests {
 
     #[test]
     fn distance_between_two_points_in_km() {
-        let coordinate_a = Coordinate::new(47.3753910, 20.5763675);
-        let coordinate_b = Coordinate::new(87.3753910, 20.5763675);
+        let coordinate_a = Coordinate::new(20.5763675, 47.3753910);
+        let coordinate_b = Coordinate::new(20.5763675, 87.3753910);
 
         assert_eq!(
             4168.7314,
@@ -66,7 +65,7 @@ mod tests {
 
     #[test]
     fn distance_to_area_same_axis_x() {
-        let point = Coordinate::new(100.0, 80.0);
+        let point = Coordinate::new(80.0, 100.0);
         let area = SquaredFilter::new(Coordinate::new(40.0, 40.0), Coordinate::new(80.0, 80.0));
 
         assert_eq!(
@@ -80,7 +79,7 @@ mod tests {
     }
     #[test]
     fn distance_to_area_same_axis_y() {
-        let point = Coordinate::new(40.0, 100.0);
+        let point = Coordinate::new(100.0, 80.0);
         let area = SquaredFilter::new(Coordinate::new(40.0, 40.0), Coordinate::new(80.0, 80.0));
 
         assert_eq!(
@@ -105,25 +104,19 @@ mod tests {
             true,
             is_point_more_than_x_distance_from_filter(&area, &point, 1105.0)
         );
-    }    
+    }
     #[test]
     fn point_is_in_area() {
         let point = Coordinate::new(45.0, 45.0);
         let area = SquaredFilter::new(Coordinate::new(40.0, 40.0), Coordinate::new(80.0, 80.0));
 
-        assert_eq!(
-            true,
-            is_point_in_area(&area, &point)
-        );
-    }    
+        assert_eq!(true, is_point_in_area(&area, &point));
+    }
     #[test]
     fn point_is_not_in_area() {
         let point = Coordinate::new(91.0, 91.0);
         let area = SquaredFilter::new(Coordinate::new(40.0, 40.0), Coordinate::new(80.0, 80.0));
 
-        assert_eq!(
-            false,
-            is_point_in_area(&area, &point)
-        );
+        assert_eq!(false, is_point_in_area(&area, &point));
     }
 }

@@ -2,7 +2,8 @@ use std::{
     fs::File,
     io::{BufRead, BufReader},
     path::PathBuf,
-    sync::{Arc, Mutex}, time::Instant,
+    sync::{Arc, Mutex},
+    // time::Instant,
 };
 
 use rayon::prelude::*;
@@ -10,6 +11,7 @@ use rayon::ThreadPoolBuilder;
 use regex::Regex;
 
 use crate::{
+    io::read_xml_file,
     model::SquaredFilter,
     parser::{compile_coordinate_regex, extract_first_coordinate_from_text},
     utils::{is_point_in_area, is_point_more_than_x_distance_from_filter},
@@ -75,23 +77,20 @@ pub fn filter_tracks_outside_area(
         .unwrap();
 
     let filtered_paths = Arc::new(Mutex::new(Vec::new()));
-    let re = compile_coordinate_regex();
     thread_pool.install(|| {
         paths.into_par_iter().for_each(|path| {
             let filtered_paths_clone = Arc::clone(&filtered_paths);
             let area_clone = area.clone();
-            let re_clone = re.clone();
 
-            let now = Instant::now();
+            // let now = Instant::now();
 
-            if file_contains_point_in_area(&path, re_clone, &area_clone) {
+            if file_contains_point_in_area(&path, &area_clone) {
                 let mut filtered_paths = filtered_paths_clone.lock().unwrap();
                 filtered_paths.push(path.clone());
             }
 
-            let elapsed = now.elapsed();
-            println!("Elapsed: {:.2?} {path:?}", elapsed);
-        
+            // let elapsed = now.elapsed();
+            // println!("Elapsed: {:.2?} {path:?}", elapsed);
         });
     });
 
@@ -99,23 +98,6 @@ pub fn filter_tracks_outside_area(
         .unwrap()
         .into_inner()
         .unwrap()
-}
-
-/// .Deprecated
-pub fn prefilter_files_single_thread(
-    paths: Vec<PathBuf>,
-    area: &SquaredFilter,
-    distance: f32,
-) -> Vec<PathBuf> {
-    let mut filtered_paths = Vec::new();
-    let re = compile_coordinate_regex();
-    for path in paths {
-        if is_file_far_away_from_area(&path, re.clone(), area, distance) {
-            continue;
-        }
-        filtered_paths.push(path);
-    }
-    filtered_paths
 }
 
 /// Check the files that are further away the given distance from the target area
@@ -132,6 +114,9 @@ fn is_file_far_away_from_area(
         let coordinate = extract_first_coordinate_from_text(re.clone(), line.unwrap().as_str());
         match coordinate {
             Some(coordinate) => {
+                if is_point_in_area(&area, &coordinate) {
+                    return false;
+                }
                 if is_point_more_than_x_distance_from_filter(area, &coordinate, distance) {
                     return true;
                 }
@@ -144,27 +129,45 @@ fn is_file_far_away_from_area(
 }
 
 /// Check the files that are further away the given distance from the target area
-fn file_contains_point_in_area(path: &PathBuf, re: Regex, area: &SquaredFilter) -> bool {
-    let file = File::open(path).unwrap();
-    let reader = BufReader::new(file);
+fn file_contains_point_in_area(path: &PathBuf, area: &SquaredFilter) -> bool {
+    let coordinates = read_xml_file(&path);
 
-    for line in reader.lines() {
-        let line_content = line.unwrap();
-        
-        // Skip regex if already line does not match
-        if ! line_content.clone().contains("   <trkpt"){
-            continue;
-        }
-
-        let coordinate = extract_first_coordinate_from_text(re.clone(), line_content.as_str());
-        match coordinate {
-            Some(coordinate) => {
-                if is_point_in_area(area, &coordinate) {
-                    return true;
-                }
-            }
-            None => continue,
+    for coordinate in coordinates {
+        if is_point_in_area(area, &coordinate) {
+            return true;
         }
     }
+
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::model::Coordinate;
+
+    use super::*;
+
+    const TEST_FILE: &str = "test/files/9244476879.gpx";
+
+    #[test]
+    fn test_file_is_not_in_area() {
+        let area = SquaredFilter::new(
+            Coordinate::new(8.5763870, 47.3753910),
+            Coordinate::new(10.985259, 49.48004),
+        );
+        let path = PathBuf::from(TEST_FILE);
+
+        assert_eq!(false, file_contains_point_in_area(&path, &area));
+    }
+
+    #[test]
+    fn test_file_is_in_area() {
+        let area = SquaredFilter::new(
+            Coordinate::new(-12.5763870, 165.3753910),
+            Coordinate::new(-10.985259, 167.48004),
+        );
+        let path = PathBuf::from(TEST_FILE);
+
+        assert_eq!(true, file_contains_point_in_area(&path, &area));
+    }
 }
