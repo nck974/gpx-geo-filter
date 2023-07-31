@@ -1,19 +1,28 @@
-use std::{fs::read_dir, fs::File, io::BufReader, path::PathBuf};
+use std::{
+    fs::File,
+    fs::{self, read_dir},
+    io::BufReader,
+    path::PathBuf,
+};
 
 use quick_xml::{events::Event, reader::Reader};
 
 use crate::model::Coordinate;
 
-pub fn collect_data(directory: &str) -> Vec<PathBuf> {
-    println!("Reading files from {directory}!");
+pub fn read_files_in_folder(directory: &str) -> Vec<PathBuf> {
+    println!("Reading files from '{directory}'...");
 
-    let files = read_dir(directory).unwrap_or_else(|_| panic!("Directory could not be found!"));
+    let files = read_dir(directory).expect("Directory could not be opened!");
+
     let mut found_files: Vec<PathBuf> = Vec::new();
     for file in files {
         match file {
-            Ok(file) => {
+            Ok(file) if file.path().extension().unwrap() == ".gpx" => {
                 let file_path = file.path();
                 found_files.push(file_path);
+            }
+            Ok(file) => {
+                println!("File {:?} is not a .gpx track", file)
             }
             Err(err) => {
                 println!("Error reading file: {err}");
@@ -63,6 +72,13 @@ pub fn read_xml_file(path: &PathBuf) -> Vec<Coordinate> {
         buf.clear(); // clear memory
     }
     coordinates
+}
+
+/// Copy the provided file in the provided folder with the same name
+pub fn copy_gpx_file(output: &str, file: PathBuf) {
+    let filename = file.file_name().unwrap().to_str().unwrap();
+    let output = String::from(output) + "/" + filename;
+    fs::copy(file, output).unwrap();
 }
 
 #[cfg(test)]

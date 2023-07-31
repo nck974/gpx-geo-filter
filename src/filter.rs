@@ -3,7 +3,6 @@ use std::{
     io::{BufRead, BufReader},
     path::PathBuf,
     sync::{Arc, Mutex},
-    // time::Instant,
 };
 
 use rayon::prelude::*;
@@ -17,9 +16,11 @@ use crate::{
     utils::{is_point_in_area, is_point_more_than_x_distance_from_filter},
 };
 
-/// .
+type SafeSharedVec = Arc<Mutex<Vec<PathBuf>>>;
+
 /// Filters all the tracks that at a distance longer than the provided distance from the provided
-/// area. Filtering is based on the first element found
+/// area. Filtering is based on the first point found in the file using a regex on latitude and
+/// longitude
 ///
 /// # Panics
 ///
@@ -31,47 +32,45 @@ pub fn prefilter_files(
     area: &SquaredFilter,
     distance: f32,
     threads: usize,
-) -> Vec<PathBuf> {
-    let thread_pool = ThreadPoolBuilder::new()
-        .num_threads(threads)
-        .build()
-        .unwrap();
+) -> (Vec<PathBuf>, Vec<PathBuf>) {
+    let thread_pool = build_thread_pool(threads);
 
-    let filtered_paths = Arc::new(Mutex::new(Vec::new()));
+    let nearby_paths = SafeSharedVec::default();
+    let area_paths = SafeSharedVec::default();
+
     let re = compile_coordinate_regex();
+
     thread_pool.install(|| {
         paths.into_par_iter().for_each(|path| {
-            let filtered_paths_clone = Arc::clone(&filtered_paths);
+            let nearby_paths_clone = Arc::clone(&nearby_paths);
+            let area_paths_clone = Arc::clone(&area_paths);
             let re_clone = re.clone();
 
             let coordinate = extract_first_coordinate_from_file(&path, re_clone);
             match coordinate {
-                Some(coordinate) => {
-                    if is_point_in_area(area, &coordinate) {
-                        let mut filtered_paths = filtered_paths_clone.lock().unwrap();
-                        filtered_paths.push(path);
-                    } else if !is_point_more_than_x_distance_from_filter(
-                        area,
-                        &coordinate,
-                        distance,
-                    ) {
-                        let mut filtered_paths = filtered_paths_clone.lock().unwrap();
-                        filtered_paths.push(path);
-                    }
+                Some(coordinate) if is_point_in_area(area, &coordinate) => {
+                    let mut area_paths = area_paths_clone.lock().unwrap();
+                    area_paths.push(path);
+                }
+                Some(coordinate)
+                    if !is_point_more_than_x_distance_from_filter(area, &coordinate, distance) =>
+                {
+                    let mut nearby_paths = nearby_paths_clone.lock().unwrap();
+                    nearby_paths.push(path);
                 }
                 _ => (),
             }
         });
     });
 
-    Arc::try_unwrap(filtered_paths)
-        .unwrap()
-        .into_inner()
-        .unwrap()
+    let area = Arc::try_unwrap(area_paths).unwrap().into_inner().unwrap();
+    let nearby = Arc::try_unwrap(nearby_paths).unwrap().into_inner().unwrap();
+    (area, nearby)
 }
 
 /// .
-/// Filters all the tracks that do not have at least one point in the provided area
+/// Filters all the tracks that do not have at least one point in the provided area by looping
+/// through all the points
 ///
 /// # Panics
 ///
@@ -83,26 +82,18 @@ pub fn filter_tracks_outside_area(
     area: &SquaredFilter,
     threads: usize,
 ) -> Vec<PathBuf> {
-    let thread_pool = ThreadPoolBuilder::new()
-        .num_threads(threads)
-        .build()
-        .unwrap();
+    let thread_pool = build_thread_pool(threads);
 
-    let filtered_paths = Arc::new(Mutex::new(Vec::new()));
+    let filtered_paths = SafeSharedVec::default();
     thread_pool.install(|| {
         paths.into_par_iter().for_each(|path| {
             let filtered_paths_clone = Arc::clone(&filtered_paths);
             let area_clone = area.clone();
 
-            // let now = Instant::now();
-
             if file_contains_point_in_area(&path, &area_clone) {
                 let mut filtered_paths = filtered_paths_clone.lock().unwrap();
                 filtered_paths.push(path.clone());
             }
-
-            // let elapsed = now.elapsed();
-            // println!("Elapsed: {:.2?} {path:?}", elapsed);
         });
     });
 
@@ -112,12 +103,28 @@ pub fn filter_tracks_outside_area(
         .unwrap()
 }
 
+/// Return a thread pool with the given number of threads
+fn build_thread_pool(threads: usize) -> rayon::ThreadPool {
+    let thread_pool = ThreadPoolBuilder::new()
+        .num_threads(threads)
+        .build()
+        .expect("The thread pool could not be created");
+    thread_pool
+}
+
+/// Use a regex to find the first point the file
 fn extract_first_coordinate_from_file(path: &PathBuf, re: Regex) -> Option<Coordinate> {
     let file = File::open(path).unwrap();
     let reader = BufReader::new(file);
 
     for line in reader.lines() {
-        let coordinate = extract_first_coordinate_from_text(re.clone(), line.unwrap().as_str());
+        
+        let line = match line {
+            Ok(line) => line,
+            Err(_) => continue, // Skip lines with errors
+        };
+
+        let coordinate = extract_first_coordinate_from_text(&re, line.as_str());
         match coordinate {
             Some(coordinate) => return Some(coordinate),
             None => continue,

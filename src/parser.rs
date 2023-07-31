@@ -6,11 +6,11 @@ use crate::model::Coordinate;
 /// in 200 files
 pub fn compile_coordinate_regex() -> Regex {
     let pattern = r#"<trkpt\s+lat="(-?[\d.]+)"\s+lon="(-?[\d.]+)"\s*>"#;
-    Regex::new(pattern).unwrap()
+    Regex::new(pattern).expect("The patter is not a valid regex")
 }
 
 /// The pre-filtering expects to find the trackpoints in a single line with just two parameters
-pub fn extract_first_coordinate_from_text(re: Regex, text: &str) -> Option<Coordinate> {
+pub fn extract_first_coordinate_from_text(re: &Regex, text: &str) -> Option<Coordinate> {
     // Use the regex to extract latitude and longitude
     if let Some(captures) = re.captures(text) {
         let latitude: f32 = captures[1].parse().unwrap();
@@ -32,7 +32,7 @@ mod tests {
         let re = compile_coordinate_regex();
         assert_eq!(
             Some(coordinate),
-            extract_first_coordinate_from_text(re, input)
+            extract_first_coordinate_from_text(&re, input)
         );
     }
     #[test]
@@ -42,7 +42,7 @@ mod tests {
         let re = compile_coordinate_regex();
         assert_eq!(
             Some(coordinate),
-            extract_first_coordinate_from_text(re, input)
+            extract_first_coordinate_from_text(&re, input)
         );
     }
 }
