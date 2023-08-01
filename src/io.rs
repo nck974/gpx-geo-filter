@@ -17,7 +17,7 @@ pub fn read_files_in_folder(directory: &str) -> Vec<PathBuf> {
     let mut found_files: Vec<PathBuf> = Vec::new();
     for file in files {
         match file {
-            Ok(file) if file.path().extension().unwrap() == ".gpx" => {
+            Ok(file) if file.path().extension().unwrap() == "gpx" => {
                 let file_path = file.path();
                 found_files.push(file_path);
             }
