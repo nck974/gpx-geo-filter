@@ -6,6 +6,8 @@ use crate::{
     model::{Coordinate, SquaredFilter},
 };
 
+pub mod config;
+pub mod cli;
 mod filter;
 mod io;
 mod model;

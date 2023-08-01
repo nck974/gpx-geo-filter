@@ -1,21 +1,26 @@
-use gpx_geo_filter::{filter_tracks, copy_gpx_files};
-
-static DIRECTORY: &str = "samples";
-// static DIRECTORY: &str = r"C:\Users\nck\Development\py-geo-locator\gps_data";
-static OUTPUT: &str = r"output";
+use gpx_geo_filter::{cli::get_cli_arguments, copy_gpx_files, filter_tracks};
 
 fn main() {
-    let first_lat = 49.454470;
-    let first_lon = 10.954986;
-    let second_lat = 49.506443;
-    let second_lon = 11.030173;
-
-    let distance = 300.0;
-    let threads: usize = 12;
+    let config = get_cli_arguments();
 
     let files = filter_tracks(
-        DIRECTORY, first_lat, first_lon, second_lat, second_lon, distance, threads,
+        &config
+            .folder
+            .to_str()
+            .expect("The folder can not be parsed"),
+        config.first_lat,
+        config.first_lon,
+        config.second_lat,
+        config.second_lon,
+        config.distance,
+        config.threads,
     );
 
-    copy_gpx_files(files, OUTPUT);
+    match config.copy_to {
+        Some(path) => {
+            println!("Copying filtered files to {:?}", path.display());
+            copy_gpx_files(files, &path.to_str().expect("Invalid output path"));
+        }
+        _ => (),
+    }
 }
