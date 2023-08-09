@@ -7,7 +7,7 @@ This project aims to provide a tool to quickly filter a big amount of gpx tracks
 - [Usage](#usage)
 - [Features](#features)
 - [Contributing](#contributing)
-- [License](#license)
+- [Development](#development)
 
 ## Usage
 
@@ -33,24 +33,14 @@ cargo run -- `
 
 ## Contributing
 
-[Specify how others can contribute to your project. Include guidelines for bug reports, feature requests, and code submissions.]
-
-1. Fork the repository.
-2. Create a new branch: `git checkout -b my-new-feature`.
-3. Make your changes and commit them: `git commit -m 'Add some feature'`.
-4. Push to the branch: `git push origin my-new-feature`.
-5. Submit a pull request.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE). # TODO
-
-## Acknowledgments
-
-[If your project is based on or inspired by others, acknowledge them here.]
-
-[Example: This project was inspired by [Name of the project or person](link-to-source).]
+1. Submit a pull request.
 
 ## Issues
 
 Open an issue in github.
+
+## Development
+
+### Rust
+
+1. Just compile the project `cargo run`.
