@@ -1,3 +1,7 @@
+# Deprecated
+
+This project has been deprecated in favour of a backend server that serves the gpx files: <https://github.com/nck974/where-have-i-been>
+
 # GPX Geo filter
 
 This project aims to provide a tool to quickly filter a big amount of gpx tracks to the tracks that are within the provided area.
